@@ -1,0 +1,72 @@
+version: '3.8'
+x-common:
+  database:
+    &db-environment
+    # Do not remove the "&db-password" from the end of the line below, it is important
+    # for Panel functionality.
+    MYSQL_PASSWORD: &db-password ""
+    MYSQL_ROOT_PASSWORD: ""
+  panel:
+    &panel-environment
+    APP_URL: "https://game.example.io"
+    APP_TIMEZONE: "Europe/Berlin"
+    APP_SERVICE_AUTHOR: "info@example.io"
+  mail:
+    &mail-environment
+    MAIL_FROM: "info@example.io"
+    MAIL_DRIVER: "smtp"
+    MAIL_HOST: "mail"
+    MAIL_PORT: "1025"
+    MAIL_USERNAME: ""
+    MAIL_PASSWORD: ""
+    MAIL_ENCRYPTION: "true"
+#
+# ------------------------------------------------------------------------------------------
+# DANGER ZONE BELOW
+#
+# The remainder of this file likely does not need to be changed. Please only make modifications
+# below if you understand what you are doing.
+#
+services:
+  database:
+    image: mariadb:10.5
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - "./database:/var/lib/mysql"
+    environment:
+      <<: *db-environment
+      MYSQL_DATABASE: "panel"
+      MYSQL_USER: "pterodactyl"
+    networks:
+      - ptero
+  cache:
+    image: redis:alpine
+    restart: unless-stopped
+    networks:
+      - ptero
+  panel:
+    image: ghcr.io/pterodactyl/panel:latest
+    restart: unless-stopped
+    container_name: panel
+    volumes:
+      - "./var/:/app/var/"
+      - "./nginx/:/etc/nginx/http.d/"
+      - "./certs/:/etc/letsencrypt/"
+      - "./logs/:/app/storage/logs"
+    environment:
+      <<: [*panel-environment, *mail-environment]
+      DB_PASSWORD: *db-password
+      APP_ENV: "production"
+      APP_ENVIRONMENT_ONLY: "false"
+      CACHE_DRIVER: "redis"
+      SESSION_DRIVER: "redis"
+      QUEUE_DRIVER: "redis"
+      REDIS_HOST: "cache"
+      DB_HOST: "database"
+      DB_PORT: "3306"
+    networks:
+      - ptero
+networks:
+  traefik:
+    external: true
