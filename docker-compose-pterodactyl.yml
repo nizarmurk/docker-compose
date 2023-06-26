@@ -68,5 +68,5 @@ services:
     networks:
       - ptero
 networks:
-  traefik:
+  ptero:
     external: true
