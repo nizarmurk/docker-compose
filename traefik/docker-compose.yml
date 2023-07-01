@@ -1,0 +1,50 @@
+version: '3.9'
+services:
+  traefik:
+    container_name: traefik
+    image: traefik:latest
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data/traefik.yml:/traefik.yml:ro
+      - ./data/acme.json:/acme.json
+      - ./data/dynamic_conf.yml:/dynamic_conf.yml
+      - /var/log/crowdsec/traefik/:/var/log/traefik/
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.entrypoints=https"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.example.io`)"
+      - "traefik.http.routers.traefik.middlewares=traefikAuth@file,default@file"
+      - "traefik.http.routers.traefik.tls=true"
+#      - "traefik.http.routers.traefik.tls.certresolver=https"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.services.traefik.loadbalancer.sticky.cookie.httpOnly=true"
+      - "traefik.http.services.traefik.loadbalancer.sticky.cookie.secure=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=example.io"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.example.io"
+    environment:
+    #can use with .env file
+      - CF_API_EMAIL=
+      - CF_API_KEY=
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      traefik:
+      crowdsec:
+        ipv4_address: 172.31.0.10 
+    hostname: traefik
+    ports:
+      - "80:80"
+      - "443:443"
+
+networks:
+  traefik:
+    name: traefik
+    driver: bridge
+    attachable: true
+  crowdsec:
+    external: true 
